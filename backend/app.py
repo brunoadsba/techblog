@@ -2,6 +2,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
+from flask_cors import CORS
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://brunoadsba:8808@localhost/db_blog'
@@ -11,6 +12,10 @@ app.config['JWT_SECRET_KEY'] = 'sua_chave_secreta_jwt'
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
+CORS(app)
+
+# Configuração de codificação UTF-8
+app.config['JSON_AS_ASCII'] = False
 
 from . import routes
 from . import models

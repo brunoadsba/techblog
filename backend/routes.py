@@ -1,8 +1,12 @@
 from flask import request, jsonify
 from .app import app, db
 from .models import User, Post
-from flask_jwt_extended import create_access_token, jwt_required
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
+
+# Adicione um usuário administrador fixo
+ADMIN_USERNAME = 'brunoadsba'
+ADMIN_PASSWORD = '8808'
 
 @app.route('/')
 def home():
@@ -10,24 +14,28 @@ def home():
 
 @app.route('/login', methods=['POST'])
 def login():
-    data = request.get_json()
-    user = User.query.filter_by(username=data['username']).first()
-    if user and check_password_hash(user.password, data['password']):
-        access_token = create_access_token(identity={'username': user.username})
-        return jsonify(access_token=access_token), 200
-    return jsonify({"msg": "Nome de usuário ou senha incorretos"}), 401
+    username = request.json.get('username', None)
+    password = request.json.get('password', None)
+    if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+        access_token = create_access_token(identity=username)
+        return jsonify(access_token=access_token)
+    return jsonify({"msg": "Bad username or password"}), 401
 
 @app.route('/posts', methods=['GET'])
-@jwt_required()
 def get_posts():
     posts = Post.query.all()
-    return jsonify([{'id': post.id, 'title': post.title, 'content': post.content} for post in posts])
+    return jsonify([post.to_dict() for post in posts])
 
-@app.route('/posts', methods=['POST'])
+@app.route('/admin/posts', methods=['POST'])
 @jwt_required()
 def create_post():
-    data = request.get_json()
-    new_post = Post(title=data['title'], content=data['content'])
-    db.session.add(new_post)
+    current_user = get_jwt_identity()
+    # Verifique se o usuário atual é um administrador
+    if current_user != ADMIN_USERNAME:
+        return jsonify({"msg": "Unauthorized"}), 403
+    title = request.json.get('title', None)
+    content = request.json.get('content', None)
+    post = Post(title=title, content=content)
+    db.session.add(post)
     db.session.commit()
-    return jsonify({'id': new_post.id, 'title': new_post.title, 'content': new_post.content}), 201
+    return jsonify(post.to_dict()), 201
